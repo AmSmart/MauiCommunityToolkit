@@ -12,11 +12,7 @@ public sealed partial class FolderPickerImplementation : IFolderPicker
 {
 	async Task<Folder> InternalPickAsync(string initialPath, CancellationToken cancellationToken)
 	{
-		var status = await Permissions.RequestAsync<Permissions.StorageRead>().WaitAsync(cancellationToken).ConfigureAwait(false);
-		if (status is not PermissionStatus.Granted)
-		{
-			throw new PermissionException("Storage permission is not granted.");
-		}
+		await CheckPermission(cancellationToken).ConfigureAwait(false);
 
 		Folder? folder = null;
 		const string baseUrl = "content://com.android.externalstorage.documents/document/primary%3A";
@@ -38,6 +34,20 @@ public sealed partial class FolderPickerImplementation : IFolderPicker
 		{
 			var path = EnsurePhysicalPath(resultIntent.Data);
 			folder = new Folder(path, Path.GetFileName(path));
+		}
+	}
+
+	static async Task CheckPermission(CancellationToken cancellationToken)
+	{
+		if (Build.VERSION.SdkInt >= BuildVersionCodes.Tiramisu)
+		{
+			return;
+		}
+
+		var status = await Permissions.RequestAsync<Permissions.StorageRead>().WaitAsync(cancellationToken).ConfigureAwait(false);
+		if (status is not PermissionStatus.Granted)
+		{
+			throw new PermissionException("Storage permission is not granted.");
 		}
 	}
 
